@@ -7,8 +7,8 @@ Suppliers matched to the Companies House register (01 November 2026 snapshot). G
 | Method | Suppliers | Spend |
 | --- | ---: | ---: |
 | public_body | 441 | £15.74bn |
-| exact_name | 864 | £15.53bn |
-| exact_name+postcode | 729 | £7.05bn |
+| exact_name | 866 | £15.53bn |
+| exact_name+postcode | 727 | £7.05bn |
 | joint_venture | 27 | £6.33bn |
 | not_found | 530 | £2.88bn |
 | fuzzy+postcode | 115 | £792.8M |
