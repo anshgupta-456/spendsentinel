@@ -13,6 +13,8 @@ DATA_DIR = ROOT / "data"
 RAW_SPEND_DIR = DATA_DIR / "raw" / "spend"
 RAW_COMPANIES_DIR = DATA_DIR / "raw" / "companies_house"
 DB_PATH = DATA_DIR / "spendsentinel.duckdb"
+# Kept in its own file so rebuilding the spend database does not reload 5.7M companies.
+COMPANIES_DB_PATH = DATA_DIR / "companies_house.duckdb"
 
 SQL_DIR = ROOT / "sql"
 EXPORTS_DIR = ROOT / "exports"
