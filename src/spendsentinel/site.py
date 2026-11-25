@@ -179,9 +179,14 @@ def build_data(con: duckdb.DuckDBPyConnection) -> dict:
 
 
 def run() -> Path:
-    if SITE_DIR.exists():
-        shutil.rmtree(SITE_DIR)
-    shutil.copytree(WEB_DIR, SITE_DIR)
+    # Empty the folder rather than delete it: it may be a mounted volume (Docker) or a served directory.
+    SITE_DIR.mkdir(exist_ok=True)
+    for child in SITE_DIR.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+    shutil.copytree(WEB_DIR, SITE_DIR, dirs_exist_ok=True)
     with duckdb.connect(str(DB_PATH), read_only=True) as con:
         data = build_data(con)
     payload = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
