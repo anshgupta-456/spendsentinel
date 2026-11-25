@@ -1,51 +1,68 @@
 # Building the Tableau Public dashboard
 
-The dashboard is built in Tableau Public (free) from the CSVs that
-`spendsentinel audit` and `spendsentinel match` write to `exports/`.
+About an hour in Tableau Public (free). The data is already shaped for Tableau:
+`spendsentinel tableau` writes it to `exports/tableau/`, and the live dashboard
+publishes the same files, so you can also download them from its footer.
 
-## 1. Connect the data
+## 0. Get the data
 
-In Tableau Public, **Connect > Text file** and open `exports/payments.csv`. Then add
-these as separate data sources the same way:
+Either run `spendsentinel tableau`, or download these from the live site's footer
+(`https://anshgupta-456.github.io/spendsentinel/data/<file>`):
 
-| File | Used for |
-| --- | --- |
-| `payments.csv` | Overview, trends, exceptions list |
-| `possible_duplicates.csv` | Duplicate review table |
-| `supplier_spend.csv` | Top suppliers and the 80/20 curve |
-| `supplier_risk.csv` | Supplier risk view |
-| `data_quality_rules.csv` | Data quality panel |
+| File | Rows | What it is |
+| --- | ---: | --- |
+| `spend_payments.csv` | ~51,000 | One row per payment, with department, duplicate tier and the supplier's Companies House status already joined in. Most sheets use only this. |
+| `duplicate_pairs.csv` | ~3,300 | Each matching pair: both dates, both references, tier (bulk-order pairs included, so filter them) |
+| `supplier_ranking.csv` | ~3,200 | Suppliers ranked within each department, with share and cumulative share |
+| `quality_issues_by_rule.csv` | ~25 | Data-quality rule counts per department |
 
-Check the field types: `payment_date` and `period_month` are **Date**, `amount_gbp`
-and `spend_gbp` are **Number (decimal)**, and the true/false columns are **Boolean**.
+## 1. Connect
 
-## 2. Calculated fields (in `payments`)
+1. Install Tableau Public from public.tableau.com and sign in (free account).
+2. **Connect > To a File > Text file** and open `spend_payments.csv`.
+3. On the data source page, check the field types: `payment_date` and `period_month` are
+   **Date**; `amount_gbp` is **Number (decimal)**; `possible_duplicate`, `below_publication_threshold`
+   and the `supplier_*` columns are **Boolean**.
+4. Add the other three files as separate data sources (**Data > New Data Source**).
+
+## 2. Calculated fields (in `spend_payments`)
 
 ```
-Spend (£)              SUM([amount_gbp])
-Flagged spend (£)      SUM(IF [possible_duplicate] THEN [amount_gbp] END)
-Payments               COUNTD([payment_id])
-Average payment (£)    [Spend (£)] / [Payments]
+Spend                SUM([amount_gbp])
+Payments             COUNTD([payment_id])
+Flagged spend        SUM(IF [possible_duplicate] THEN [amount_gbp] END)
+Flagged share        [Flagged spend] / [Spend]
+Risky supplier       [supplier_insolvent] OR [supplier_strike_off_proposed]
+                     OR [supplier_accounts_overdue] OR [supplier_confirmation_overdue]
+Spend with risky     SUM(IF [Risky supplier] THEN [amount_gbp] END)
 ```
+
+Format `Spend`, `Flagged spend` and `Spend with risky` as currency (£, units: millions).
 
 ## 3. Sheets
 
-1. **KPI tiles**: Spend, Payments, distinct suppliers, Flagged spend. One sheet per tile, big numbers, no axes.
-2. **Monthly trend**: `period_month` (continuous month) on Columns, `Spend (£)` on Rows, `dept_code` on Color.
-3. **Top suppliers**: from `supplier_spend`, filter `rank <= 15`, `supplier_name` on Rows sorted by `spend_gbp`, `dept_code` as a filter.
-4. **80/20 curve**: from `supplier_spend`, `rank` on Columns, `cumulative_share` on Rows, one line per `dept_code`, with a reference line at 0.8.
-5. **Duplicate review**: from `possible_duplicates`, a text table of supplier, amount, first and second date, refs and `confidence`. Filter out `bulk` and `no_reference` by default, but keep them selectable.
-6. **Supplier risk**: from `supplier_risk`, a bar of `spend_gbp` by supplier, filtered to rows where any flag is true, colored by `status`.
-7. **Data quality**: from `data_quality_rules`, `rule` on Rows and `flagged` as bars, with `action` as a label.
+| Sheet | Build |
+| --- | --- |
+| **KPI: Spend** | `Spend` on Text. Big font, no axes. Repeat for `Payments`, `Flagged spend`, `Spend with risky`. |
+| **Monthly trend** | `period_month` (continuous, MONTH) on Columns, `Spend` on Rows, `department` on Rows too, so each department gets its own panel and scale. Set **Edit Axis > Independent axis ranges**. |
+| **Top suppliers** | `supplier_name` on Rows, `Spend` on Columns, sort descending, filter Top 15 by `Spend`. `department` as a filter shown as a single-value list. |
+| **Duplicates** | From `duplicate_pairs`: text table of `supplier_name`, `department`, `amount_gbp`, `first_date`, `second_date`, `first_ref`, `second_ref`, `confidence`. Filter `confidence` to high, medium, low; show the filter so bulk and no_reference can be switched on. |
+| **80/20 curve** | From `supplier_ranking`: `rank` on Columns, `cumulative_share` on Rows, `department` on Color; add a constant reference line at 0.8. |
+| **Supplier risk** | `supplier_name` on Rows, `Spend` on Columns, filter `Risky supplier` = True, `company_status` on Color. |
+| **Data quality** | From `quality_issues_by_rule`: `rule` on Rows, `SUM(flagged)` on Columns, `level` on Color. |
 
 ## 4. Dashboards
 
-- **Overview**: KPI tiles across the top, monthly trend below, top suppliers on the right. Add a `dept_code` filter that applies to every sheet that uses the payments data.
-- **Exceptions**: the duplicate review table with a confidence filter, plus the supplier risk chart.
-- **Data quality**: the rules chart plus a text box with the reconciliation line from `reports/data_quality.md`.
+1. **Overview**: the four KPI tiles across the top, the monthly trend below, top suppliers on the right.
+   Add the `department` filter and set it to **Apply to worksheets > All using this data source**.
+2. **Exceptions**: the duplicates table with its confidence filter, plus the supplier risk chart.
+3. **Data quality**: the rules chart and a text box with the reconciliation line from
+   `reports/data_quality.md` ("every department balances to the penny").
 
-Set the size to **Automatic** or 1200 × 800, and add a title and a "Source: GOV.UK spending over £25,000 files, Companies House" caption.
+Size: **Fixed 1200 × 800** (or Automatic). Add a title and the caption
+"Source: GOV.UK spending over £25,000 files; Companies House. Every finding is a lead for review."
 
 ## 5. Publish
 
-**File > Save to Tableau Public**. Copy the public link into the README under "Results".
+**File > Save to Tableau Public As...**, name it "SpendSentinel: UK government spend audit".
+Copy the public link and add it to the README under **Results**, next to the live dashboard link.
