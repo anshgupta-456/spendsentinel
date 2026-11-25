@@ -2,6 +2,10 @@ name: refresh and deploy
 
 # Rebuilds everything from the latest published files once a month, commits the
 # refreshed reports, and publishes the dashboard to GitHub Pages.
+#
+# Publishing is a plain push of the built site to the gh-pages branch, which Pages
+# serves. That avoids the Pages deployment API, which failed with 5xx errors.
+# A separate job then confirms the live page carries this run's build stamp.
 on:
   schedule:
     - cron: "0 6 8 * *"   # 06:00 UTC on the 8th; departments publish towards the end of the month
@@ -9,8 +13,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: refresh-and-deploy
@@ -20,6 +22,8 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      stamp: ${{ steps.site.outputs.stamp }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,9 +51,11 @@ jobs:
           spendsentinel match
 
       - name: Build the Tableau extracts and the dashboard
+        id: site
         run: |
           spendsentinel tableau
           spendsentinel site
+          echo "stamp=$(grep -o '"generated_at":"[^"]*"' _site/index.html | cut -d'"' -f4)" >> "$GITHUB_OUTPUT"
 
       - name: Commit refreshed reports
         run: |
@@ -64,16 +70,42 @@ jobs:
             git push
           fi
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
+      - name: Publish the dashboard to the gh-pages branch
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd _site
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish dashboard built from ${GITHUB_SHA::7}"
+          # gh-pages only ever holds the latest build, so it is replaced each time.
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
 
-  deploy:
+  check:
     needs: refresh
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Wait for the new build to go live, then check the downloads
+        env:
+          STAMP: ${{ needs.refresh.outputs.stamp }}
+        run: |
+          base="https://anshgupta-456.github.io/spendsentinel"
+          echo "expecting build $STAMP"
+          for attempt in $(seq 1 30); do
+            if curl -sf "$base/?nocache=$attempt" | grep -q "\"generated_at\":\"$STAMP\""; then
+              echo "live after $attempt checks"
+              break
+            fi
+            [ "$attempt" = 30 ] && { echo "the new build never went live"; exit 1; }
+            sleep 20
+          done
+          failed=""
+          for path in data/spend_payments.csv data/duplicate_pairs.csv data/supplier_ranking.csv \
+                      data/quality_issues_by_rule.csv; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$base/$path")
+            echo "$code /$path"
+            [ "$code" = "200" ] || failed=1
+          done
+          [ -z "$failed" ]
