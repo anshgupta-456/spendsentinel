@@ -215,6 +215,38 @@ def brief_month(con: duckdb.DuckDBPyConnection, month: date, model: str = DEFAUL
     return record
 
 
+def summarize_runs() -> None:
+    """Write reports/briefings/README.md: the latest run for each month and model."""
+    if not RUN_LOG.exists():
+        return
+    latest: dict[tuple[str, str], dict] = {}
+    for line in RUN_LOG.read_text(encoding="utf-8").splitlines():
+        record = json.loads(line)
+        latest[(record["model"], record["month"])] = record
+    runs = sorted(latest.values(), key=lambda r: (r["model"], r["month"]))
+    first_ok = sum(r["first_draft"]["verified"] for r in runs)
+    first_all = sum(r["first_draft"]["figures"] for r in runs)
+    final_ok = sum(r["final"]["verified"] for r in runs)
+    final_all = sum(r["final"]["figures"] for r in runs)
+    corrected = sum(r["attempts"] > 1 for r in runs)
+    lines = ["# Briefing experiment", "",
+             "Each month's briefing is written by a local model from SQL facts, then every figure in it is "
+             "checked against those facts. If any figure fails, the model is told which ones and gets one "
+             "rewrite. This table keeps the latest run per month.", "",
+             f"**First drafts: {first_ok} of {first_all} figures verified "
+             f"({first_ok / first_all:.0%}). After correction: {final_ok} of {final_all} "
+             f"({final_ok / final_all:.0%}).** {corrected} of {len(runs)} briefings needed a rewrite.", "",
+             "| Month | Model | First draft verified | Final verified | Attempts |",
+             "| --- | --- | ---: | ---: | ---: |"]
+    for r in runs:
+        lines.append(f"| [{r['month']}]({r['month']}.md) | {r['model']} | "
+                     f"{r['first_draft']['verified']} / {r['first_draft']['figures']} | "
+                     f"{r['final']['verified']} / {r['final']['figures']} | {r['attempts']} |")
+    lines += ["", "Limits: the check confirms each figure appears in the facts. It does not confirm the "
+              "figure is attached to the right department or supplier, so a human still reads the text.", ""]
+    (BRIEFINGS_DIR / "README.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def run(month: str | None = None, all_months: bool = False, model: str = DEFAULT_MODEL) -> None:
     with duckdb.connect(str(DB_PATH)) as con:
         months = [r[0] for r in con.execute("""
@@ -230,3 +262,4 @@ def run(month: str | None = None, all_months: bool = False, model: str = DEFAULT
             r = brief_month(con, m, model)
             print(f"{r['month']}: first draft {r['first_draft']['verified']}/{r['first_draft']['figures']} verified, "
                   f"final {r['final']['verified']}/{r['final']['figures']} after {r['attempts']} attempt(s)")
+    summarize_runs()
