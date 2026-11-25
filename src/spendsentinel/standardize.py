@@ -125,6 +125,11 @@ def supplier_key(name: str | None) -> str | None:
     words = text.split()
     if words and words[0] == "THE":
         words = words[1:]
+    # Drop short codes after a legal suffix: "MITIE FM LTD - 2WM" -> "MITIE FM LTD".
+    for i in range(len(words) - 1, 0, -1):
+        if words[i] in ("LIMITED", "LTD", "PLC", "LLP") and 0 < len(words) - i - 1 <= 3:
+            words = words[:i + 1]
+            break
     while len(words) > 1 and words[-1] in _LEGAL_SUFFIXES:
         words = words[:-1]
     return " ".join(words) or None

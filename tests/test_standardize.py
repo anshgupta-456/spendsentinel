@@ -60,6 +60,10 @@ def test_parse_file_finds_header_below_a_title_and_decodes_cp1252():
     ("The Crown Hosting Data Centres Ltd.", "CROWN HOSTING DATA CENTRES"),
     ("Morris & Spottiswood Limited", "MORRIS AND SPOTTISWOOD"),
     ("Capita Business Services Ltd", "CAPITA BUSINESS SERVICES"),
+    ("MITIE FM LTD - 2WM", "MITIE FM"),
+    ("ALEXANDER MANN SOLUTIONS LTD-2WM", "ALEXANDER MANN SOLUTIONS"),
+    ("Pinsent Masons LLP 2022/2027 (TR140)", "PINSENT MASONS"),
+    ("Acme Holdings Limited Partnership", "ACME HOLDINGS"),
 ])
 def test_supplier_key(name, key):
     assert st.supplier_key(name) == key
