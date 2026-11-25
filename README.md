@@ -1,6 +1,10 @@
 # SpendSentinel
 
 [![tests](https://github.com/anshgupta-456/spendsentinel/actions/workflows/tests.yml/badge.svg)](https://github.com/anshgupta-456/spendsentinel/actions/workflows/tests.yml)
+[![refresh and deploy](https://github.com/anshgupta-456/spendsentinel/actions/workflows/refresh.yml/badge.svg)](https://github.com/anshgupta-456/spendsentinel/actions/workflows/refresh.yml)
+
+**Live dashboard: [anshgupta-456.github.io/spendsentinel](https://anshgupta-456.github.io/spendsentinel/)**
+(rebuilt from the latest published files every month)
 
 Audit analytics for UK government spending. SpendSentinel downloads the monthly
 "spending over £25,000" files that departments publish on GOV.UK, combines them
@@ -133,6 +137,20 @@ naming the smallest change as the largest while every number still checked out, 
 is why rankings now come from SQL. The figure check cannot confirm a figure is attached
 to the right department or supplier, so a person still reads the briefing.
 
+## Deployment and automation
+
+| What | How |
+| --- | --- |
+| Live dashboard | `spendsentinel site` builds a single static page (no server, no external libraries) with the data embedded, plus the Tableau CSVs for download. GitHub Pages hosts it. |
+| Monthly refresh | [`refresh.yml`](.github/workflows/refresh.yml) runs on the 8th of each month: fetch, build, audit, download the new Companies House snapshot, match, rebuild the page, commit the refreshed reports and redeploy. About 6 minutes on a GitHub runner. |
+| Tests | [`tests.yml`](.github/workflows/tests.yml) runs lint, unit tests and the end-to-end pipeline test on every push, on Python 3.11 and 3.13. |
+| Container | The [Dockerfile](Dockerfile) runs any step: `docker build -t spendsentinel .` then `docker run --rm -v "$PWD/out:/app/_site" spendsentinel site`. |
+| Tableau | `spendsentinel tableau` writes analysis-ready CSVs to `exports/tableau/`; [the guide](docs/tableau_dashboard.md) builds the Tableau Public workbook from them. |
+
+The LLM briefing is the one step not in the monthly job, because it needs a model
+server; it runs wherever Ollama is reachable (`OLLAMA_URL`), and its committed
+results are shown on the dashboard.
+
 ## Run it
 
 Requires Python 3.11+, and [Ollama](https://ollama.com) for the briefing step.
@@ -150,6 +168,8 @@ spendsentinel match       # match suppliers and flag risk
 spendsentinel evaluate    # precision from the hand-checked review sample
 ollama pull llama3.2:3b
 spendsentinel brief --all-months
+spendsentinel tableau     # CSVs for Tableau in exports/tableau/
+spendsentinel site        # the dashboard in _site/ (open _site/index.html)
 pytest                    # unit and end-to-end tests
 ```
 
@@ -170,11 +190,15 @@ src/spendsentinel/
   companies.py             Companies House snapshot loader
   match.py                 supplier matching cascade and risk flags
   briefing.py              LLM briefing and figure checker
+  tableau.py               analysis-ready CSVs for Tableau
+  site.py, web/            static dashboard builder and its HTML, CSS and JavaScript
 sql/build/                 roll lines up into payments, reconciliation
 sql/audit/                 one file per audit test
 tests/                     unit tests and an end-to-end pipeline test
 reports/                   generated reports (committed)
 docs/                      data dictionary, Tableau dashboard guide
+.github/workflows/         tests on every push; monthly refresh and deploy
+Dockerfile                 run any step in a container
 ```
 
 ## Data
