@@ -148,6 +148,7 @@ def build_data(con: duckdb.DuckDBPyConnection) -> dict:
         "quality": {"reconciliation": recon, "rules": _rules(con)},
         "briefing": _briefing(),
         "risk": None,
+        "downloads": sorted(p.name for p in (ROOT / "exports" / "tableau").glob("*.csv")),
     }
 
     if _has_table(con, "supplier_risk"):
@@ -196,6 +197,12 @@ def run() -> Path:
         raise RuntimeError("index.html is missing the data placeholder")
     index.write_text(html.replace(DATA_PLACEHOLDER, payload), encoding="utf-8")
     (SITE_DIR / ".nojekyll").write_text("", encoding="utf-8")
+    # Publish the Tableau extracts next to the page, so the data behind it can be downloaded.
+    tableau_dir = ROOT / "exports" / "tableau"
+    if tableau_dir.exists():
+        (SITE_DIR / "data").mkdir(exist_ok=True)
+        for csv_file in tableau_dir.glob("*.csv"):
+            shutil.copy2(csv_file, SITE_DIR / "data" / csv_file.name)
     size = sum(p.stat().st_size for p in SITE_DIR.rglob("*") if p.is_file())
     print(f"site: {SITE_DIR.relative_to(ROOT)}/index.html ({size / 1024:.0f} KB)")
     return index

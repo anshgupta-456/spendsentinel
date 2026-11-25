@@ -348,5 +348,10 @@
         el("a", { href: `${REPO}/blob/main/reports/briefings/README.md`, text: "See the experiment" }), ".")));
   }
 
-  $("generated").textContent = `Built ${data.generated_at} UTC by spendsentinel site.`;
+  const generated = $("generated");
+  generated.textContent = `Built ${data.generated_at} UTC by spendsentinel site. `;
+  if (data.downloads && data.downloads.length) {
+    generated.append("Download the data as CSV: ",
+      ...data.downloads.flatMap((name, i) => [i ? ", " : "", el("a", { href: `data/${name}`, text: name })]), ".");
+  }
 })();

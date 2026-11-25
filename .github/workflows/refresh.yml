@@ -46,8 +46,10 @@ jobs:
           rm -f data/raw/companies_house/*.csv data/raw/companies_house/*.zip
           spendsentinel match
 
-      - name: Build the dashboard
-        run: spendsentinel site
+      - name: Build the Tableau extracts and the dashboard
+        run: |
+          spendsentinel tableau
+          spendsentinel site
 
       - name: Commit refreshed reports
         run: |
