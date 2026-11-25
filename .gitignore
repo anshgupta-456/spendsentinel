@@ -8,6 +8,7 @@ __pycache__/
 # Downloaded and generated data (rebuilt by `spendsentinel all`)
 data/
 exports/
+_site/
 *.duckdb
 *.duckdb.wal
 

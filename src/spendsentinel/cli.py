@@ -50,6 +50,12 @@ def _brief(args: argparse.Namespace) -> None:
     briefing.run(month=args.month, all_months=args.all_months, model=args.model)
 
 
+def _site(_: argparse.Namespace) -> None:
+    from . import site
+
+    site.run()
+
+
 def _all(args: argparse.Namespace) -> None:
     _fetch(args)
     _build(args)
@@ -71,6 +77,7 @@ def main() -> None:
     brief.add_argument("--all-months", action="store_true", help="brief every month with full coverage")
     brief.add_argument("--model", default="llama3.2:3b", help="Ollama model name")
     brief.set_defaults(func=_brief)
+    steps.add_parser("site", help="build the static dashboard in _site/").set_defaults(func=_site)
     steps.add_parser("all", help="fetch, build, audit and match").set_defaults(func=_all)
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
