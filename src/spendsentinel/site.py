@@ -132,7 +132,7 @@ def build_data(con: duckdb.DuckDBPyConnection) -> dict:
     """)
 
     data = {
-        "generated_at": datetime.now(UTC).isoformat(timespec="minutes"),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M"),
         "departments": [{"code": c, "name": names.get(c, c)} for c in sorted(names)],
         "scope": scope,
         "monthly": _rows(con, """

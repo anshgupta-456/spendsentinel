@@ -65,7 +65,7 @@
     const head = el("tr", {}, columns.map((c) => el("th", { class: c.num ? "num" : null, scope: "col", text: c.label })));
     const body = rows.map((r) => el("tr", {}, columns.map((c) => {
       const value = c.render ? c.render(r) : r[c.key];
-      return el("td", { class: c.num ? "num" : null }, value instanceof Node ? value : String(value ?? ""));
+      return el("td", { class: c.num ? "num" : c.nowrap ? "nowrap" : null }, value instanceof Node ? value : String(value ?? ""));
     })));
     return el("div", { class: "table-scroll" }, el("table", {}, el("thead", {}, head), el("tbody", {}, body)));
   }
@@ -132,7 +132,7 @@
     const matchedSpend = matched.reduce((s, c) => s + c.spend, 0);
     const insolvency = data.risk.flags.find((f) => f.flag === "insolvency");
     tiles.append(
-      tile("Spend matched to Companies House", pct(matchedSpend / (scope.spend - unreg)), "of the spend that could be on the register"),
+      tile("Matched to Companies House", pct(matchedSpend / (scope.spend - unreg)), "of the spend that could be on the register"),
       tile("Paid to suppliers now insolvent", money(insolvency.spend), `${insolvency.suppliers} suppliers in liquidation or administration`),
     );
   }
@@ -151,7 +151,8 @@
   function lineChart(dept) {
     const rows = data.monthly.filter((r) => r.dept === dept);
     const byMonth = Object.fromEntries(rows.map((r) => [r.month, r]));
-    const W = 560, H = 190, m = { t: 10, r: 14, b: 26, l: 60 };
+    // Drawn close to its on-screen size so 11px labels stay 11px.
+    const W = 380, H = 170, m = { t: 10, r: 12, b: 24, l: 52 };
     const step = niceStep(Math.max(...rows.map((r) => r.spend)) / 3);
     const yMax = Math.ceil(Math.max(...rows.map((r) => r.spend)) / step) * step;
     const x = (i) => m.l + (i * (W - m.l - m.r)) / Math.max(1, allMonths.length - 1);
@@ -164,8 +165,10 @@
       label.textContent = moneyAxis(v);
       chart.append(label);
     }
+    const last = allMonths.length - 1;
     allMonths.forEach((mo, i) => {
-      if (i % 3 !== 0 && i !== allMonths.length - 1) return;
+      const quarterly = i % 3 === 0 && last - i >= 2;  // skip one that would crowd the final label
+      if (!quarterly && i !== last) return;
       const label = svg("text", { class: "axis-label", x: x(i), y: H - 6, "text-anchor": "middle" });
       label.textContent = monthLabel(mo, mo.endsWith("-01") || i === 0);
       chart.append(label);
@@ -231,8 +234,8 @@
       { label: "Supplier", key: "supplier" },
       { label: "Dept", key: "dept" },
       { label: "Amount", num: true, render: (r) => money(r.amount) },
-      { label: "First paid", render: (r) => dateLabel(r.first_date) },
-      { label: "Second paid", render: (r) => dateLabel(r.second_date) },
+      { label: "First paid", nowrap: true, render: (r) => dateLabel(r.first_date) },
+      { label: "Second paid", nowrap: true, render: (r) => dateLabel(r.second_date) },
       { label: "References", render: (r) => `${r.first_ref} / ${r.second_ref}` },
       { label: "Tier", render: (r) => badge(...tierBadge[r.tier]) },
     ], shown));
@@ -345,5 +348,5 @@
         el("a", { href: `${REPO}/blob/main/reports/briefings/README.md`, text: "See the experiment" }), ".")));
   }
 
-  $("generated").textContent = `Built ${data.generated_at.replace("T", " ")} UTC by \`spendsentinel site\`.`;
+  $("generated").textContent = `Built ${data.generated_at} UTC by spendsentinel site.`;
 })();
