@@ -145,7 +145,7 @@ to the right department or supplier, so a person still reads the briefing.
 | Monthly refresh | [`refresh.yml`](.github/workflows/refresh.yml) runs on the 8th of each month: fetch, build, audit, download the new Companies House snapshot, match, rebuild the page, commit the refreshed reports and publish. A final job waits until the live page shows the new build's timestamp and every download returns 200, so a green run means the site really changed. |
 | Tests | [`tests.yml`](.github/workflows/tests.yml) runs lint, unit tests and the end-to-end pipeline test on every push, on Python 3.11 and 3.13. |
 | Container | The [Dockerfile](Dockerfile) runs any step: `docker build -t spendsentinel .` then `docker run --rm -v "$PWD/out:/app/_site" spendsentinel site`. |
-| Tableau | `spendsentinel tableau` writes analysis-ready CSVs to `exports/tableau/`; [the guide](docs/tableau_dashboard.md) builds the Tableau Public workbook from them. |
+| Tableau | `spendsentinel tableau` writes analysis-ready CSVs and a packaged workbook (`SpendSentinel.twbx`) with eight sheets and three dashboards pre-built; open it in Tableau Public and publish ([guide](docs/tableau_dashboard.md)). |
 
 The LLM briefing is the one step not in the monthly job, because it needs a model
 server; it runs wherever Ollama is reachable (`OLLAMA_URL`), and its committed

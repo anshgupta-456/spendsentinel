@@ -1,8 +1,32 @@
 # Building the Tableau Public dashboard
 
-About an hour in Tableau Public (free). The data is already shaped for Tableau:
-`spendsentinel tableau` writes it to `exports/tableau/`, and the live dashboard
-publishes the same files, so you can also download them from its footer.
+## Quick route: the ready-made workbook (about 10 minutes)
+
+`spendsentinel tableau` also writes `exports/tableau/SpendSentinel.twbx`, a packaged
+workbook with the data inside and these already built:
+
+- **Sheets:** Total spend, Payments, Flagged spend, Monthly trend, Flagged spend by
+  department, Top suppliers, Supplier risk, Quality rules
+- **Dashboards:** Overview, Suppliers, Data quality
+
+1. Install Tableau Public from public.tableau.com (free) and sign in.
+2. **File > Open** and choose `SpendSentinel.twbx` (or download it from the live dashboard's footer).
+3. Click through the three dashboard tabs. Two quick touch-ups make it look finished:
+   - On **Monthly trend**, right-click the y-axis, choose **Edit Axis**, and set
+     **Independent axis ranges for each row**, so each department gets its own scale.
+   - Format money as currency: right-click `SUM(amount_gbp)` and `Flagged spend`, choose
+     **Format**, then set **Numbers > Currency (Custom)**, display units **Millions (M)**, prefix £.
+4. **File > Save to Tableau Public As...**, name it "SpendSentinel: UK government spend audit".
+5. Copy the public link into the README under **Results**.
+
+The workbook is generated without Tableau, so if anything looks off when it opens,
+the manual route below builds the same sheets from scratch.
+
+## Manual route (about an hour)
+
+The data is already shaped for Tableau: `spendsentinel tableau` writes it to
+`exports/tableau/`, and the live dashboard publishes the same files, so you can also
+download them from its footer.
 
 ## 0. Get the data
 
