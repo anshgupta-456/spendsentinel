@@ -14,6 +14,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+# Writes the .hyper extracts inside the Tableau workbook (spendsentinel tableau).
+tableau = ["tableauhyperapi>=0.0.19"]
 
 [project.scripts]
 spendsentinel = "spendsentinel.cli:main"
