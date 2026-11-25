@@ -69,8 +69,31 @@ def run() -> None:
                        coalesce(sum(abs(amount_pence)), 0) / 100.0 AS amount_gbp
                 FROM quality_issues GROUP BY ALL ORDER BY flagged DESC
             """,
+            # Small, pre-shaped tables so the workbook's charts need no Top-N or flag filters.
+            "top_suppliers": """
+                SELECT d.department, r.supplier_name, r.rank, r.spend_gbp, r.share, r.payments
+                FROM supplier_ranked r JOIN departments d USING (dept_code)
+                WHERE r.rank <= 10 ORDER BY d.department, r.rank
+            """,
         }
+        if matched:
+            tables["risky_suppliers"] = """
+                SELECT supplier_name, company_number, status, departments, spend_gbp,
+                       concat_ws(', ',
+                           CASE WHEN insolvency THEN 'insolvency' END,
+                           CASE WHEN strike_off_proposed THEN 'strike-off proposed' END,
+                           CASE WHEN accounts_overdue THEN 'accounts overdue' END,
+                           CASE WHEN confirmation_overdue THEN 'confirmation statement overdue' END) AS flags
+                FROM supplier_risk
+                WHERE insolvency OR strike_off_proposed OR accounts_overdue OR confirmation_overdue
+                ORDER BY spend_gbp DESC
+            """
         for name, query in tables.items():
             frame = con.execute(query).df()
             frame.to_csv(TABLEAU_DIR / f"{name}.csv", index=False)
             print(f"{name}.csv: {len(frame):,} rows")
+
+    from .tableau_workbook import build_workbook
+
+    workbook = build_workbook(TABLEAU_DIR, include_risk=matched)
+    print(f"workbook: {workbook.relative_to(EXPORTS_DIR.parent)}")
