@@ -111,8 +111,10 @@ def _write_findings(con: duckdb.DuckDBPyConnection) -> Path:
                 "| Dept | Supplier | Amount | Paid twice on | Expense type |",
                 "| --- | --- | ---: | --- | --- |"]
         for r in top_pairs.itertuples():
+            expense = (r.first_expense_type or "")
+            expense = expense if len(expense) <= 60 else expense[:57].rstrip() + "..."
             out.append(f"| {r.dept_code} | {r.supplier_name} | {money(r.amount_gbp)} | "
-                       f"{r.first_date:%d %b %Y} | {r.first_expense_type or ''} |")
+                       f"{r.first_date:%d %b %Y} | {expense} |")
     out += ["", "## Supplier concentration", "",
             "| Dept | Suppliers | Spend | Top 10 share | Suppliers for 80% | HHI | Largest supplier |",
             "| --- | ---: | ---: | ---: | ---: | ---: | --- |"]
