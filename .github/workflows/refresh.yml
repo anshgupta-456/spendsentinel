@@ -58,6 +58,7 @@ jobs:
             echo "reports unchanged"
           else
             git commit -m "Refresh reports from the latest published spend data"
+            git pull --rebase   # someone may have pushed while the pipeline ran
             git push
           fi
 
