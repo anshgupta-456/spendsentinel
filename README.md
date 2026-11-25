@@ -23,7 +23,7 @@ Four departments (HMRC, DWP, DBT, DfT), 12 months each, 48 files:
 | Possible duplicate payments | 457 payments worth £49.2M flagged for review, after setting aside bulk orders |
 | Suppliers matched to Companies House | 90% of the spend that could be on the register |
 | Spend with suppliers now in liquidation or administration | £3.1M across 7 suppliers |
-| LLM briefing figures verified against SQL | see [briefing experiment](reports/briefings/README.md) |
+| LLM briefings (2 local models × 10 months) | 96% of figures right in first drafts, 209 of 210 after one correction; invented figures and a wrong comparison caught and logged ([experiment](reports/briefings/README.md)) |
 
 Reports: [audit findings](reports/audit_findings.md) ·
 [supplier matching and risk](reports/supplier_risk.md) ·
@@ -112,19 +112,26 @@ before the first payment.
 
 ## LLM briefing with checked figures
 
-`spendsentinel brief` asks a local model (`llama3.2:3b` through Ollama, temperature 0)
-to write a short monthly briefing. Guardrails:
+`spendsentinel brief` asks a local model (through Ollama, temperature 0) to write a
+short monthly briefing. The experiment compares `llama3.2:3b` and `llama3.1:8b` over
+10 months, run on a GPU server by pointing `OLLAMA_URL` at it. Guardrails:
 
 - The model sees only aggregated facts computed in SQL, never payment rows, and runs
   on the local machine, so no data leaves it.
 - Every money figure, percentage and count in its text is extracted and matched to a
   fact, allowing only for the rounding shown (`£3.49bn` must round from the fact).
 - If any figure fails, the model is told which ones and gets one rewrite.
+- Rankings (which department changed most) are computed in SQL and passed in as facts,
+  and the briefing's largest-change claim is checked against them.
 - Every run is logged in `reports/briefings/runs.jsonl` and summarised in
   [the experiment table](reports/briefings/README.md).
 
-The check confirms each figure appears in the facts. It does not confirm the figure is
-attached to the right department or supplier, so a person still reads the briefing.
+What the experiment found: first drafts got 96% of figures right; the misses were
+invented numbers (one rewrite claimed £437.5bn for a month of about £5bn), all caught.
+An earlier version let the model rank departments itself, and a human read showed it
+naming the smallest change as the largest while every number still checked out, which
+is why rankings now come from SQL. The figure check cannot confirm a figure is attached
+to the right department or supplier, so a person still reads the briefing.
 
 ## Run it
 
