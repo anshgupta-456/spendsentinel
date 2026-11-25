@@ -11,6 +11,7 @@ Guardrails:
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -21,7 +22,8 @@ import requests
 from .audit import money
 from .config import DB_PATH, REPORTS_DIR, load_settings
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+# Point this at another machine (for example a GPU server) with the OLLAMA_URL environment variable.
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/") + "/api/chat"
 DEFAULT_MODEL = "llama3.2:3b"
 BRIEFINGS_DIR = REPORTS_DIR / "briefings"
 RUN_LOG = BRIEFINGS_DIR / "runs.jsonl"
