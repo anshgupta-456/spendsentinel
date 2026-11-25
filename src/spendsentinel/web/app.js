@@ -351,7 +351,8 @@
   const generated = $("generated");
   generated.textContent = `Built ${data.generated_at} UTC by spendsentinel site. `;
   if (data.downloads && data.downloads.length) {
-    generated.append("Download the data as CSV: ",
-      ...data.downloads.flatMap((name, i) => [i ? ", " : "", el("a", { href: `data/${name}`, text: name })]), ".");
+    generated.append("Downloads: ",
+      ...data.downloads.flatMap((name, i) => [i ? ", " : "", el("a", { href: `data/${name}`, text: name })]),
+      ". The .twbx file opens in Tableau Public with every chart already built.");
   }
 })();

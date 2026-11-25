@@ -148,7 +148,7 @@ def build_data(con: duckdb.DuckDBPyConnection) -> dict:
         "quality": {"reconciliation": recon, "rules": _rules(con)},
         "briefing": _briefing(),
         "risk": None,
-        "downloads": sorted(p.name for p in (ROOT / "exports" / "tableau").glob("*.csv")),
+        "downloads": sorted(p.name for p in (ROOT / "exports" / "tableau").glob("*.*") if p.suffix in (".csv", ".twbx")),
     }
 
     if _has_table(con, "supplier_risk"):
@@ -201,8 +201,8 @@ def run() -> Path:
     tableau_dir = ROOT / "exports" / "tableau"
     if tableau_dir.exists():
         (SITE_DIR / "data").mkdir(exist_ok=True)
-        for csv_file in tableau_dir.glob("*.csv"):
-            shutil.copy2(csv_file, SITE_DIR / "data" / csv_file.name)
+        for data_file in [*tableau_dir.glob("*.csv"), *tableau_dir.glob("*.twbx")]:
+            shutil.copy2(data_file, SITE_DIR / "data" / data_file.name)
     size = sum(p.stat().st_size for p in SITE_DIR.rglob("*") if p.is_file())
     print(f"site: {SITE_DIR.relative_to(ROOT)}/index.html ({size / 1024:.0f} KB)")
     return index
