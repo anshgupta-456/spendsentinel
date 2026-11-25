@@ -24,6 +24,11 @@ def test_rounded_figures_match_their_facts():
     assert all(r["verified"] for r in results), results
 
 
+def test_digits_inside_names_are_not_counts():
+    figures = extract_figures("Top supplier was BALFOUR BEATTY VINCI JV - HS2 (N2) on the A19, with 37 payments.")
+    assert [f.text for f in figures] == ["37"]
+
+
 def test_invented_figures_are_caught():
     results = check("Spend was £3.9bn and 41 duplicates were found.", FACTS)
     assert [r["figure"] for r in results if not r["verified"]] == ["£3.9bn", "41"]

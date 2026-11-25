@@ -92,7 +92,8 @@ def month_facts(con: duckdb.DuckDBPyConnection, month: date) -> dict:
 MONEY = re.compile(r"(?P<neg>-)?£\s?(?P<num>\d[\d,]*(?:\.\d+)?)\s?(?P<unit>bn|billion|m|million|k|thousand)?\b",
                    re.IGNORECASE)
 PERCENT = re.compile(r"(?P<sign>[+-])?(?P<num>\d+(?:\.\d+)?)\s?%")
-COUNT = re.compile(r"(?<![\d.,£])\d{1,3}(?:,\d{3})+(?![\d.,])|(?<![\d.,£])\d+(?![\d.,%])")
+# Digits that are part of a name ("HS2 (N2)", "A19", "S1") are not counts, so a count may not touch a letter.
+COUNT = re.compile(r"(?<![\w.,£])\d{1,3}(?:,\d{3})+(?![\w.,])|(?<![\w.,£])\d+(?![\w.,%])")
 UNITS = {"bn": 1e9, "billion": 1e9, "m": 1e6, "million": 1e6, "k": 1e3, "thousand": 1e3}
 
 
