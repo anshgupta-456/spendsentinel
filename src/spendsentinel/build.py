@@ -43,7 +43,8 @@ RULES = {
     "zero_amount": ("line", "Amount is exactly £0.00", "keep, flag"),
     "negative_amount": ("line", "Negative amount (credit note or refund)", "keep, flag"),
     "exact_duplicate_line": ("line", "Line is identical to another line in the same file", "keep, flag"),
-    "repeated_across_files": ("line", "Same transaction, supplier, date and amount already published in an earlier file", "drop the later copy"),
+    "repeated_across_files": ("line", "Same transaction, supplier, date and amount already published in an earlier file",
+                              "drop the later copy"),
     "below_publication_threshold": ("payment", "Payment total is under £25,000 after adding up its lines", "keep, flag"),
 }
 
@@ -64,7 +65,8 @@ def _line_records(manifest_row: dict, dept_code: str):
     }
     issues = []
     if parsed.header_row > 0:
-        issues.append(("file", source_file, dept_code, "header_not_on_first_row", f"header on line {parsed.header_row + 1}", None))
+        detail = f"header on line {parsed.header_row + 1}"
+        issues.append(("file", source_file, dept_code, "header_not_on_first_row", detail, None))
     if parsed.encoding == "cp1252":
         issues.append(("file", source_file, dept_code, "encoding_cp1252", "", None))
     if parsed.unmapped:
@@ -196,7 +198,8 @@ def _write_report(con: duckdb.DuckDBPyConnection, rules: pd.DataFrame) -> Path:
     out += ["", "## Reconciliation", "",
             "Every pound in the raw files is either kept or dropped with a reason, "
             "so `raw = kept + dropped` must hold to the penny.", "",
-            "| Department | Raw lines | Kept lines | Dropped lines | Payments | Raw total | Kept total | Dropped total | Balances |",
+            "| Department | Raw lines | Kept lines | Dropped lines | Payments "
+            "| Raw total | Kept total | Dropped total | Balances |",
             "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: |"]
     for r in recon.itertuples():
         balanced = r.raw_pence == r.kept_pence + r.dropped_pence and r.kept_pence == r.payments_pence

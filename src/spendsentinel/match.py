@@ -192,7 +192,7 @@ def _pick_fuzzy(supplier_key: str, supplier_postcode: str | None, candidates: pd
 def _match_all(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     suppliers = con.execute("SELECT supplier_key, supplier_name, postcode FROM suppliers").df()
     suppliers["postcode"] = suppliers.postcode.map(_postcode)
-    postcode_of = dict(zip(suppliers.supplier_key, suppliers.postcode))
+    postcode_of = dict(zip(suppliers.supplier_key, suppliers.postcode, strict=True))
 
     exact = con.execute(EXACT_CANDIDATES_SQL).df()
     matches: dict[str, dict] = {}

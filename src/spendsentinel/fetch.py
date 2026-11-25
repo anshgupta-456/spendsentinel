@@ -12,7 +12,7 @@ import hashlib
 import re
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
@@ -92,7 +92,7 @@ def fetch_department(dept: Department, months: int) -> list[FetchedFile]:
     for year, month, title, base_path in publications:
         publication_url = f"https://www.gov.uk{base_path}"
         urls = csv_attachments(base_path)
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         if not urls:
             rows.append(FetchedFile(dept.code, year, month, title, publication_url, "", "", 0, "",
                                     "skipped: no CSV attachment", now))
