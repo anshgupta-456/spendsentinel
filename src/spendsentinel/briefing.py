@@ -34,8 +34,9 @@ Rules:
 - Copy every money figure exactly as written in the *_text fields (for example "£1.23bn" or "£45.6M").
 - Write percentages exactly as given in the *_pct_text fields.
 - At most 150 words, plain sentences, no headings, no bullet points.
-- Cover: total spend, which department changed most from the previous month, the largest suppliers,
-  and the possible duplicate payments flagged for review."""
+- Cover: total spend and its change, the department named in largest_change_department and its change,
+  the largest suppliers, and the possible duplicate payments flagged for review.
+- Do not compare or rank departments yourself; use largest_change_department as given."""
 
 
 # ---------------------------------------------------------------------------
@@ -76,9 +77,18 @@ def month_facts(con: duckdb.DuckDBPyConnection, month: date) -> dict:
           AND date_trunc('month', second_date) = ?
     """, [month]).fetchone()
     total = sum(d["spend"] for d in departments)
+    # Comparisons are computed here, not left to the model: small models get rankings wrong.
+    previous_total = sum(p for *_, p in depts) if all(p for *_, p in depts) else None
+    total_change_pct = (total - previous_total) / previous_total * 100 if previous_total else None
+    changed = [d for d in departments if d["change_vs_previous_month_pct"] is not None]
+    largest = max(changed, key=lambda d: abs(d["change_vs_previous_month_pct"]), default=None)
     return {
         "month": f"{month:%B %Y}",
         "total_spend": round(total, 2), "total_spend_text": money(total),
+        "total_change_vs_previous_month_pct": None if total_change_pct is None else round(total_change_pct, 1),
+        "total_change_vs_previous_month_pct_text": _pct_text(total_change_pct),
+        "largest_change_department": largest["department"] if largest else None,
+        "largest_change_pct_text": largest["change_vs_previous_month_pct_text"] if largest else None,
         "departments": departments,
         "possible_duplicate_payments": {"payments": int(duplicates[0]), "amount": round(duplicates[1], 2),
                                         "amount_text": money(duplicates[1])},
@@ -159,6 +169,27 @@ def check(text: str, facts: dict) -> list[dict]:
     return results
 
 
+LARGEST_CHANGE = re.compile(r"largest (change|increase|decrease|rise|fall|swing)|changed (the )?most|biggest change",
+                            re.IGNORECASE)
+
+
+def check_largest_change(text: str, facts: dict) -> dict:
+    """Does a sentence about the largest change name the department SQL found?
+
+    Returns the department named (or None when no such sentence names exactly one) and
+    whether it is the right one (None when there is nothing to judge).
+    """
+    expected = facts.get("largest_change_department")
+    names = [d["department"] for d in facts["departments"]]
+    for sentence in re.split(r"(?<=[a-z%)])\.\s+", text):
+        if not LARGEST_CHANGE.search(sentence):
+            continue
+        named = [n for n in names if n.lower() in sentence.lower()]
+        if len(named) == 1:
+            return {"named": named[0], "correct": named[0] == expected}
+    return {"named": None, "correct": None}
+
+
 # ---------------------------------------------------------------------------
 # Generating
 # ---------------------------------------------------------------------------
@@ -196,10 +227,15 @@ def brief_month(con: duckdb.DuckDBPyConnection, month: date, model: str = DEFAUL
 
     BRIEFINGS_DIR.mkdir(parents=True, exist_ok=True)
     verified = sum(r["verified"] for r in results)
+    claim = check_largest_change(text, facts)
+    claim_text = {True: f"names {claim['named']}, which is correct",
+                  False: f"names {claim['named']}, but SQL says {facts['largest_change_department']}",
+                  None: "not stated"}[claim["correct"]]
     lines = [f"# Spend briefing: {facts['month']}", "",
              f"Written by `{model}` (local, temperature 0) from SQL facts only. "
              f"Figures checked: **{verified} of {len(results)} verified**"
-             + (" after one correction." if len(attempts) > 1 else "."), "",
+             + (" after one correction." if len(attempts) > 1 else ".")
+             + f" Largest-change claim: {claim_text}.", "",
              text, "", "## Figure check", "", "| Figure | Type | Verified | Matching fact |",
              "| --- | --- | :---: | ---: |"]
     for r in results:
@@ -218,7 +254,8 @@ def brief_month(con: duckdb.DuckDBPyConnection, month: date, model: str = DEFAUL
               "month": f"{month:%Y-%m}", "attempts": len(attempts),
               "first_draft": {"figures": len(attempts[0]["results"]),
                               "verified": sum(r["verified"] for r in attempts[0]["results"])},
-              "final": {"figures": len(results), "verified": verified}}
+              "final": {"figures": len(results), "verified": verified},
+              "largest_change": claim}
     with RUN_LOG.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record) + "\n")
     return record
@@ -238,22 +275,34 @@ def summarize_runs() -> None:
     final_ok = sum(r["final"]["verified"] for r in runs)
     final_all = sum(r["final"]["figures"] for r in runs)
     corrected = sum(r["attempts"] > 1 for r in runs)
+    claims = [r.get("largest_change", {}).get("correct") for r in runs]
+    judged = [c for c in claims if c is not None]
     lines = ["# Briefing experiment", "",
              "Each month's briefing is written by a local model from SQL facts, then every figure in it is "
              "checked against those facts. If any figure fails, the model is told which ones and gets one "
-             "rewrite. This table keeps the latest run per month.", "",
+             "rewrite. A second check confirms that the department the briefing names as the largest change "
+             "is the one SQL found. This table keeps the latest run per month and model.", "",
              f"**First drafts: {first_ok} of {first_all} figures verified "
              f"({first_ok / first_all:.0%}). After correction: {final_ok} of {final_all} "
-             f"({final_ok / final_all:.0%}).** {corrected} of {len(runs)} briefings needed a rewrite.", "",
-             "| Month | Model | First draft verified | Final verified | Attempts |",
-             "| --- | --- | ---: | ---: | ---: |"]
-    for r in runs:
+             f"({final_ok / final_all:.0%}).** {corrected} of {len(runs)} briefings needed a rewrite. "
+             f"Largest-change claim correct in {sum(judged)} of {len(judged)} briefings that made one.", "",
+             "| Month | Model | First draft verified | Final verified | Attempts | Largest change |",
+             "| --- | --- | ---: | ---: | ---: | --- |"]
+    marks = {True: "correct", False: "WRONG", None: "not stated"}
+    for r, claim in zip(runs, claims, strict=True):
         lines.append(f"| [{r['month']}]({model_folder(r['model'])}/{r['month']}.md) | {r['model']} | "
                      f"{r['first_draft']['verified']} / {r['first_draft']['figures']} | "
-                     f"{r['final']['verified']} / {r['final']['figures']} | {r['attempts']} |")
-    lines += ["", "Limits: the check confirms each figure written in digits appears in the facts. It does not "
-              "check numbers written as words, or that a figure is attached to the right department or "
-              "supplier, so a person still reads the text.", ""]
+                     f"{r['final']['verified']} / {r['final']['figures']} | {r['attempts']} | {marks[claim]} |")
+    lines += ["", "## What a human read found", "",
+              "In the first version the model was asked to work out which department changed most. Every "
+              "figure still checked out, but reading the February 2026 briefings showed the 3B model giving "
+              "the Department for Transport's +4.2% as the change in total spend, and naming it as the "
+              "largest change when it was the smallest (DWP +38.1%, DBT -27.8%). Correct numbers in a wrong "
+              "comparison pass a figure check. Rankings and the total change are now computed in SQL and "
+              "passed in as facts, and the largest-change claim is checked automatically.", "",
+              "Limits: the figure check confirms each number written in digits appears in the facts. It does "
+              "not check numbers written as words, or that every figure is attached to the right department "
+              "or supplier, so a person still reads the text.", ""]
     (BRIEFINGS_DIR / "README.md").write_text("\n".join(lines), encoding="utf-8")
 
 

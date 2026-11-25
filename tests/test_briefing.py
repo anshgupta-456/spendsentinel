@@ -1,4 +1,4 @@
-from spendsentinel.briefing import check, extract_figures
+from spendsentinel.briefing import check, check_largest_change, extract_figures
 
 FACTS = {
     "total_spend": 3_456_789_012.0,
@@ -27,6 +27,22 @@ def test_rounded_figures_match_their_facts():
 def test_digits_inside_names_are_not_counts():
     figures = extract_figures("Top supplier was BALFOUR BEATTY VINCI JV - HS2 (N2) on the A19, with 37 payments.")
     assert [f.text for f in figures] == ["37"]
+
+
+CHANGE_FACTS = {
+    "largest_change_department": "Department for Work and Pensions",
+    "departments": [{"department": "Department for Transport"},
+                    {"department": "Department for Work and Pensions"}],
+}
+
+
+def test_largest_change_claim_is_checked():
+    right = "Spend was £4.09bn. The Department for Work and Pensions had the largest change, up 38.1%."
+    wrong = "Spend was £4.09bn. The Department for Transport saw the largest change in spend, up 4.2%."
+    silent = "Spend was £4.09bn."
+    assert check_largest_change(right, CHANGE_FACTS) == {"named": "Department for Work and Pensions", "correct": True}
+    assert check_largest_change(wrong, CHANGE_FACTS)["correct"] is False
+    assert check_largest_change(silent, CHANGE_FACTS)["correct"] is None
 
 
 def test_invented_figures_are_caught():
