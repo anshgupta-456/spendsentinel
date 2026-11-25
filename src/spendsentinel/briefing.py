@@ -163,6 +163,11 @@ def check(text: str, facts: dict) -> list[dict]:
 # Generating
 # ---------------------------------------------------------------------------
 
+def model_folder(model: str) -> str:
+    """Folder name for a model's briefings, e.g. 'llama3.2:3b' -> 'llama3.2-3b'."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", model)
+
+
 def _chat(model: str, messages: list[dict]) -> str:
     response = requests.post(OLLAMA_URL, json={
         "model": model, "messages": messages, "stream": False,
@@ -205,7 +210,8 @@ def brief_month(con: duckdb.DuckDBPyConnection, month: date, model: str = DEFAUL
         first = attempts[0]["results"]
         lines += ["", f"First draft: {sum(r['verified'] for r in first)} of {len(first)} figures verified. "
                   "Unverified: " + ", ".join(r["figure"] for r in first if not r["verified"]) + "."]
-    path = BRIEFINGS_DIR / f"{month:%Y-%m}.md"
+    path = BRIEFINGS_DIR / model_folder(model) / f"{month:%Y-%m}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     record = {"run_at": datetime.now().isoformat(timespec="seconds"), "model": model,
@@ -242,11 +248,12 @@ def summarize_runs() -> None:
              "| Month | Model | First draft verified | Final verified | Attempts |",
              "| --- | --- | ---: | ---: | ---: |"]
     for r in runs:
-        lines.append(f"| [{r['month']}]({r['month']}.md) | {r['model']} | "
+        lines.append(f"| [{r['month']}]({model_folder(r['model'])}/{r['month']}.md) | {r['model']} | "
                      f"{r['first_draft']['verified']} / {r['first_draft']['figures']} | "
                      f"{r['final']['verified']} / {r['final']['figures']} | {r['attempts']} |")
-    lines += ["", "Limits: the check confirms each figure appears in the facts. It does not confirm the "
-              "figure is attached to the right department or supplier, so a human still reads the text.", ""]
+    lines += ["", "Limits: the check confirms each figure written in digits appears in the facts. It does not "
+              "check numbers written as words, or that a figure is attached to the right department or "
+              "supplier, so a person still reads the text.", ""]
     (BRIEFINGS_DIR / "README.md").write_text("\n".join(lines), encoding="utf-8")
 
 
