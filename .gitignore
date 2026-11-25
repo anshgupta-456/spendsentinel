@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Downloaded and generated data (rebuilt by `spendsentinel all`)
+data/
+exports/
+*.duckdb
+*.duckdb.wal
+
+# Editor and tool folders
+.vscode/
+.idea/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

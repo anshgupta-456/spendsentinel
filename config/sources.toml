@@ -1,0 +1,25 @@
+# Which GOV.UK "spending over £25,000" collections to download.
+# Each department publishes one CSV per month. We take the latest N months
+# that each department has published.
+
+months_per_department = 12
+
+[[departments]]
+code = "HMRC"
+name = "HM Revenue and Customs"
+collection = "hmrc-spending-over-25000"
+
+[[departments]]
+code = "DWP"
+name = "Department for Work and Pensions"
+collection = "dwp-departmental-spending-over-25000"
+
+[[departments]]
+code = "DBT"
+name = "Department for Business and Trade"
+collection = "dbt-departmental-spending-over-25000"
+
+[[departments]]
+code = "DFT"
+name = "Department for Transport"
+collection = "dft-departmental-spending-over-25000"
